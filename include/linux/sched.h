@@ -16,10 +16,16 @@
 #error "Currently the close-on-exec-flags are in one word, max 32 files/proc"
 #endif
 
+// 进程的状态
+// 运行状态 可以被运行 就绪状态 进程切换只有在运行状态
 #define TASK_RUNNING		0
+// 可中断睡眠 可以被信号中断使其变为RUNING
 #define TASK_INTERRUPTIBLE	1
+// 不可中断睡眠 只能被wakeup 所唤醒变为RUNING
 #define TASK_UNINTERRUPTIBLE	2
+// 暂停
 #define TASK_ZOMBIE		3
+// 僵死状态
 #define TASK_STOPPED		4
 
 #ifndef NULL
@@ -79,8 +85,11 @@ struct tss_struct {
 
 struct task_struct {
 /* these are hardcoded - don't touch */
+    // 进程的状态
 	long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+	// 运行的时间片
 	long counter;
+	// 运行的优先级
 	long priority;
 	long signal;
 	struct sigaction sigaction[32];
@@ -170,12 +179,13 @@ __asm__("str %%ax\n\t" \
  * This also clears the TS-flag if the task we switched to has used
  * tha math co-processor latest.
  */
+// 进程切换
 #define switch_to(n) {\
 struct {long a,b;} __tmp; \
-__asm__("cmpl %%ecx,current\n\t" \
-	"je 1f\n\t" \
-	"movw %%dx,%1\n\t" \
-	"xchgl %%ecx,current\n\t" \
+__asm__("cmpl %%ecx,current\n\t" \ // 要切换的进程是否为当前进程
+	"je 1f\n\t" \ // 如果是当前的进程 不进行任何操作
+	"movw %%dx,%1\n\t" \  
+	"xchgl %%ecx,current\n\t" \ // 将需要切换的进程的指针赋值给当前进程的指针 current
 	"ljmp *%0\n\t" \
 	"cmpl %%ecx,last_task_used_math\n\t" \
 	"jne 1f\n\t" \

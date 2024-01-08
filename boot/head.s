@@ -4,12 +4,17 @@
  *  (C) 1991  Linus Torvalds
  */
 
+
 /*
  *  head.s contains the 32-bit startup code.
  *
  * NOTE!!! Startup happens at absolute address 0x00000000, which is also where
  * the page directory will exist. The startup code will be overwritten by
  * the page directory.
+ */
+
+ /*
+ 加载内核运行时的各数据段，重新设置
  */
 .text
 .globl idt,gdt,pg_dir,tmp_floppy_area

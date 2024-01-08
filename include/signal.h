@@ -3,6 +3,12 @@
 
 #include <sys/types.h>
 
+/*
+1 系统中什么是信息，都有什么信号
+2 在系统接收到信号后，他是如何处理的
+3 信号的作用
+*/
+
 typedef int sig_atomic_t;
 typedef unsigned int sigset_t;		/* 32 bits */
 
@@ -45,11 +51,21 @@ typedef unsigned int sigset_t;		/* 32 bits */
 #define SIG_DFL		((void (*)(int))0)	/* default signal handling */
 #define SIG_IGN		((void (*)(int))1)	/* ignore signal */
 
+/*
+
+struct sigaction {
+    void (*sa_handler)(int);    // 信号处理函数指针，用于指定信号处理函数
+    sigset_t sa_mask;           // 信号掩码，用于指定在处理当前信号时需要屏蔽哪些信号
+    int sa_flags;               // 信号处理标志，用于指定信号处理的一些行为
+    void (*sa_restorer)(void);  // 保留字段，不再使用
+};
+
+*/
 struct sigaction {
 	void (*sa_handler)(int);
 	sigset_t sa_mask;
-	int sa_flags;
-	void (*sa_restorer)(void);
+	int sa_flags; // 状态码
+	void (*sa_restorer)(void); // 回复函数
 };
 
 void (*signal(int _sig, void (*_func)(int)))(int);

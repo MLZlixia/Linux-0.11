@@ -75,12 +75,13 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	struct task_struct *p;
 	int i;
 	struct file *f;
-
+	// 创建task_struct的结构通
 	p = (struct task_struct *) get_free_page();
 	if (!p)
 		return -EAGAIN;
+	// 将当前的子进程放入的整体进程的链表中
 	task[nr] = p;
-	
+	// 设置task_struct 结构体
 	// NOTE!: the following statement now work with gcc 4.3.2 now, and you
 	// must compile _THIS_ memcpy without no -O of gcc.#ifndef GCC4_3
 	*p = *current;	/* NOTE! this doesn't copy the supervisor stack */
@@ -122,6 +123,9 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 		free_page((long) p);
 		return -EAGAIN;
 	}
+	// 当前进程的父进程 打开了文件
+	// 子进程会继承父进程打开的文件
+	// 将文件的打开计数+1
 	for (i=0; i<NR_OPEN;i++)
 		if ((f=p->filp[i]))
 			f->f_count++;
@@ -133,7 +137,9 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 		current->executable->i_count++;
 	set_tss_desc(gdt+(nr<<1)+FIRST_TSS_ENTRY,&(p->tss));
 	set_ldt_desc(gdt+(nr<<1)+FIRST_LDT_ENTRY,&(p->ldt));
+	// 程序转态设置为可运行
 	p->state = TASK_RUNNING;	/* do this last, just in case */
+	// 返回创建的进程的id
 	return last_pid;
 }
 

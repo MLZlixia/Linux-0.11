@@ -67,7 +67,7 @@ typedef char buffer_block[BLOCK_SIZE];
 
 struct buffer_head {
 	char * b_data;			/* pointer to data block (1024 bytes) */
-	unsigned long b_blocknr;	/* block number */
+	unsigned long b_blocknr;	/* block number */ // 块号
 	unsigned short b_dev;		/* device (0 = free) */
 	unsigned char b_uptodate;
 	unsigned char b_dirt;		/* 0-clean,1-dirty */
@@ -90,14 +90,31 @@ struct d_inode {
 	unsigned short i_zone[9];
 };
 
+// 文件系统i节点
 struct m_inode {
-	unsigned short i_mode;
-	unsigned short i_uid;
-	unsigned long i_size;
-	unsigned long i_mtime;
-	unsigned char i_gid;
-	unsigned char i_nlinks;
-	unsigned short i_zone[9];
+	// 文件的类型和属性
+	// drwxr-xr-x
+	// d 文件类型
+	   // - 普通文件
+	   // d 目录
+	   // l 链接文件
+	   // p pipe管代
+	   // c 字符设备
+	   // b 块设备
+	// 每个文件有三种属性 r（读） w （写） x（执行）
+	// 777----rwx（当前用户）rwx（用户组） rwx（他人权限）
+	unsigned short i_mode; 
+	unsigned short i_uid; // 宿主用户id
+	unsigned long i_size; // 该文件的大小
+	unsigned long i_mtime; // 文件修改时间
+	unsigned char i_gid; // 宿主的组id
+	unsigned char i_nlinks; // 链接数
+	// 该文件映射在逻辑块号的数组 
+	// 文件和磁盘的映射关系
+	// 前7位i_zone[7] 直接块号，如果你的文件只占用了七个逻辑块，那么这个数组的而每一个单元则存储了一个逻辑块号
+	// i_zone[8] 一次间接块号，一次占用的逻辑块较多 (> 7 && < 512+7) 占用一次间接逻辑块号
+	// i_zone[9] 二次间接块号，占用逻辑块太多（>512+7 && < 512*7) 启用二级逻辑块号
+	unsigned short i_zone[9]; 
 /* these are in memory also */
 	struct task_struct * i_wait;
 	unsigned long i_atime;

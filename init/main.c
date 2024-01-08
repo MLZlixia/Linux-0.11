@@ -109,21 +109,30 @@ void main(void)		/* This really IS void, no error here. */
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
-
+// 系统初始化
+   // 设置操作系统的根文件
  	ROOT_DEV = ORIG_ROOT_DEV;
+   // 设置操作系统的操作参数
  	drive_info = DRIVE_INFO;
+   // 解析setup.s 代码后获取系统内存参数
+   // 设置系统的内存大小 本身内存1M+扩展内存大小(参数大小*kb)
 	memory_end = (1<<20) + (EXT_MEM_K<<10);
+	// 取整4K的内存大小
 	memory_end &= 0xfffff000;
+	// 控制操作系统的最大内存为16M
 	if (memory_end > 16*1024*1024)
 		memory_end = 16*1024*1024;
+	// 设置高速缓冲区的大小	
 	if (memory_end > 12*1024*1024) 
 		buffer_memory_end = 4*1024*1024;
 	else if (memory_end > 6*1024*1024)
 		buffer_memory_end = 2*1024*1024;
 	else
 		buffer_memory_end = 1*1024*1024;
+	// 主内存开始=高速缓冲区的结束 用户程序开始的地方
 	main_memory_start = buffer_memory_end;
 #ifdef RAMDISK
+    // 虚拟磁盘 
 	main_memory_start += rd_init(main_memory_start, RAMDISK*1024);
 #endif
 	mem_init(main_memory_start,memory_end);
@@ -137,8 +146,11 @@ void main(void)		/* This really IS void, no error here. */
 	hd_init();
 	floppy_init();
 	sti();
+	// 从内核态切换到用户态
 	move_to_user_mode();
+	// 创建0号进程 进行最初的应用
 	if (!fork()) {		/* we count on this going ok */
+	 
 		init();
 	}
 /*
@@ -168,44 +180,58 @@ static char * envp_rc[] = { "HOME=/", NULL };
 static char * argv[] = { "-/bin/sh",NULL };
 static char * envp[] = { "HOME=/usr/root", NULL };
 
+// 运行在零号进程
 void init(void)
 {
 	int pid,i;
-
+    // 获取有关硬件驱动的信息
 	setup((void *) &drive_info);
+	// 打开标准输入控制台
 	(void) open("/dev/tty0",O_RDWR,0);
-	(void) dup(0);
-	(void) dup(0);
+	(void) dup(0); // 标准输出控制台
+	(void) dup(0); // 标准错误控制台
 	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
 		NR_BUFFERS*BLOCK_SIZE);
 	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
+	// 创建了1号进程 如果在0号父进程创建成功，返回9.如果在子进程创建成功返回父进程的pid
 	if (!(pid=fork())) {
+		// 关闭父进程打开的标准输入输出
 		close(0);
+		// 打开了系统配置文件
 		if (open("/etc/rc",O_RDONLY,0))
 			_exit(1);
+		// 挂接了文件系统，执行shell程序
 		execve("/bin/sh",argv_rc,envp_rc);
 		_exit(2);
 	}
 	if (pid>0)
+	     // 在零号进程中等待子进程退出
 		while (pid != wait(&i))
 			/* nothing */;
 	while (1) {
+		// 创建出<0 进程创建错误 重新创建子进程
 		if ((pid=fork())<0) {
 			printf("Fork failed in init\r\n");
 			continue;
 		}
+		// 在新创建的子进程中执行
 		if (!pid) {
+			// 关闭了之前的所有控制台
 			close(0);close(1);close(2);
 			setsid();
+			// 打开的新的控制台
 			(void) open("/dev/tty0",O_RDWR,0);
 			(void) dup(0);
 			(void) dup(0);
+			// 执行shell编辑本 执行完毕退出重新创建
 			_exit(execve("/bin/sh",argv,envp));
 		}
 		while (1)
+		     // 在父进程中 等待子进程退出 并重新开始循环
 			if (pid == wait(&i))
 				break;
 		printf("\n\rchild %d died with code %04x\n\r",pid,i);
+		// 执行成功一个就进行同步
 		sync();
 	}
 	_exit(0);	/* NOTE! _exit, not exit() */

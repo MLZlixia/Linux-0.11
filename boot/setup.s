@@ -1,4 +1,9 @@
 	.code16
+# 解析bios/BOOTLOADER 传过来的参数
+# 设置内核运行的LDT（局部描述符）和IDT（中断描述符）全局描述符
+# 设置中断描述符，进入保护模式运行
+# 跳转到system模块的最前面的代码运行（head.s）
+
 # rewrite with AT&T syntax by falcon <wuzhangjin@gmail.com> at 081012
 #
 #	setup.s		(C) 1991 Linus Torvalds

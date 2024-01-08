@@ -31,6 +31,7 @@ extern void put_super(int);
 extern void invalidate_inodes(int);
 
 struct buffer_head * start_buffer = (struct buffer_head *) &end;
+// hash 结构 
 struct buffer_head * hash_table[NR_HASH];
 static struct buffer_head * free_list;
 static struct task_struct * buffer_wait = NULL;
@@ -38,10 +39,12 @@ int NR_BUFFERS = 0;
 
 static inline void wait_on_buffer(struct buffer_head * bh)
 {
-	cli();
-	while (bh->b_lock)
+	// 等待解锁
+	cli(); // 中断 挂起
+	while (bh->b_lock) // 有锁定
+	    // 在b_wait链表上一直等待，没有锁定解开。
 		sleep_on(&bh->b_wait);
-	sti();
+	sti(); // 关闭中断
 }
 
 int sys_sync(void)
@@ -70,7 +73,7 @@ int sync_dev(int dev)
 			continue;
 		wait_on_buffer(bh);
 		if (bh->b_dev == dev && bh->b_dirt)
-			ll_rw_block(WRITE,bh);
+			ll_rw_block(WRITE,bh); // 底层的块设备速写函数
 	}
 	sync_inodes();
 	bh = start_buffer;
@@ -128,7 +131,9 @@ void check_disk_change(int dev)
 	invalidate_buffers(dev);
 }
 
+// hash表中的散列函数
 #define _hashfn(dev,block) (((unsigned)(dev^block))%NR_HASH)
+// 指向hashtable 计算对应的散列值
 #define hash(dev,block) hash_table[_hashfn(dev,block)]
 
 static inline void remove_from_queues(struct buffer_head * bh)
@@ -169,8 +174,9 @@ static inline void insert_into_queues(struct buffer_head * bh)
 static struct buffer_head * find_buffer(int dev, int block)
 {		
 	struct buffer_head * tmp;
-
+	// 在hash散列表后在那个查找 不断循环查找下一个
 	for (tmp = hash(dev,block) ; tmp != NULL ; tmp = tmp->b_next)
+	    // dev和block相等，找到返回
 		if (tmp->b_dev==dev && tmp->b_blocknr==block)
 			return tmp;
 	return NULL;
@@ -187,11 +193,16 @@ struct buffer_head * get_hash_table(int dev, int block)
 {
 	struct buffer_head * bh;
 
+	// 在散列表中
 	for (;;) {
+		// 没找到返回nil
 		if (!(bh=find_buffer(dev,block)))
 			return NULL;
+		// 找到计数+1
 		bh->b_count++;
+		// 没找到等待buffer 挂起
 		wait_on_buffer(bh);
+		// 等待完之后，重新比较
 		if (bh->b_dev == dev && bh->b_blocknr == block)
 			return bh;
 		bh->b_count--;
@@ -205,14 +216,16 @@ struct buffer_head * get_hash_table(int dev, int block)
  *
  * The algoritm is changed: hopefully better, and an elusive bug removed.
  */
+// 判断缓冲区的修改标志和锁定标志
 #define BADNESS(bh) (((bh)->b_dirt<<1)+(bh)->b_lock)
 struct buffer_head * getblk(int dev,int block)
 {
-	struct buffer_head * tmp, * bh;
+	struct buffer_head * tmp, * bh; // 定义一个buffer_head类型的结构体指针
 
 repeat:
 	if ((bh = get_hash_table(dev,block)))
 		return bh;
+	// 寻找合适块
 	tmp = free_list;
 	do {
 		if (tmp->b_count)
@@ -225,24 +238,36 @@ repeat:
 /* and repeat until we find something good */
 	} while ((tmp = tmp->b_next_free) != free_list);
 	if (!bh) {
+		// 寻找不到合适的块休眠
 		sleep_on(&buffer_wait);
 		goto repeat;
 	}
+	// 多线程过程中 资源被锁定 等待解锁 临界内存区域方法
 	wait_on_buffer(bh);
+	// 确保在等待过程中找到的高速缓冲区没有被使用
+	// b_count 如果被使用设置为1 没有被使用为0
 	if (bh->b_count)
+	   // 已经被使用重新查找一个块
 		goto repeat;
+	// 查找高速缓冲区是否有剩余的数据（曾经被使用）
 	while (bh->b_dirt) {
+		// 有剩余数据写盘操作（回写同步）
 		sync_dev(bh->b_dev);
+		// 同步完 进行等待
 		wait_on_buffer(bh);
+		// 被使用继续查找新高速缓冲区块
 		if (bh->b_count)
 			goto repeat;
 	}
+
 /* NOTE!! While we slept waiting for this block, somebody else might */
 /* already have added "this" block to the cache. check it */
+   // 块已经在hash表中，不能被使用，重新查找
 	if (find_buffer(dev,block))
 		goto repeat;
 /* OK, FINALLY we know that this buffer is the only one of it's kind, */
 /* and that it's unused (b_count=0), unlocked (b_lock=0), and clean */
+    // 进行头的设置并且塞入哈希表
 	bh->b_count=1;
 	bh->b_dirt=0;
 	bh->b_uptodate=0;

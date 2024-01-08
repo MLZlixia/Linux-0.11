@@ -26,7 +26,7 @@
 void show_task(int nr,struct task_struct * p)
 {
 	int i,j = 4096-sizeof(struct task_struct);
-
+	// 打印进程号，父进程号
 	printk("%d: pid=%d, state=%d, ",nr,p->pid,p->state);
 	i=0;
 	while (i<j && !((char *)(p+1))[i])
@@ -34,6 +34,7 @@ void show_task(int nr,struct task_struct * p)
 	printk("%d (of %d) chars free in kernel stack\n\r",i,j);
 }
 
+// 
 void show_stat(void)
 {
 	int i;
@@ -74,6 +75,7 @@ struct {
  *  'math_state_restore()' saves the current math information in the
  * old math state array, and gets the new ones from the current task
  */
+// 协处理器的恢复函数
 void math_state_restore()
 {
 	if (last_task_used_math == current)
@@ -104,10 +106,11 @@ void math_state_restore()
 void schedule(void)
 {
 	int i,next,c;
+
 	struct task_struct ** p;
 
 /* check alarm, wake up any interruptible tasks that have got a signal */
-
+    // 
 	for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 		if (*p) {
 			if ((*p)->alarm && (*p)->alarm < jiffies) {
@@ -124,20 +127,26 @@ void schedule(void)
 	while (1) {
 		c = -1;
 		next = 0;
-		i = NR_TASKS;
+		i = NR_TASKS; // 从最大的进程的槽开始
 		p = &task[NR_TASKS];
 		while (--i) {
-			if (!*--p)
+			if (!*--p) 
+			   // 进程为空结束循环
 				continue;
 			if ((*p)->state == TASK_RUNNING && (*p)->counter > c)
+				// 状态为可调度 并且counter大于上一个
 				c = (*p)->counter, next = i;
 		}
+		// 进程链表中含有进程的时间片没有使用完
 		if (c) break;
+		// 如果所有时间片为0
+		// 进行时间片的重新分配 优先级 轮转调度算法
 		for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 			if (*p)
 				(*p)->counter = ((*p)->counter >> 1) +
 						(*p)->priority;
 	}
+	// 进行进程的切换
 	switch_to(next);
 }
 
@@ -148,17 +157,24 @@ int sys_pause(void)
 	return 0;
 }
 
+// 当某个进程想要访问cpu的资源的,cpu 资源被占用
+// 就会调用此函数把当前进程休眠
 void sleep_on(struct task_struct **p)
 {
 	struct task_struct *tmp;
 
 	if (!p)
 		return;
+	// 当前进程是0号进程，不能休眠
 	if (current == &(init_task.task))
-		panic("task[0] trying to sleep");
+		panic("task[0] trying to sleep"); 
+	// 进程指针p赋值给一个临时变量
 	tmp = *p;
+	// 当前等待进程设置到p
 	*p = current;
+	// 当前指针设置为不可中断状态
 	current->state = TASK_UNINTERRUPTIBLE;
+	// 进行调度
 	schedule();
 	if (tmp)
 		tmp->state=0;
@@ -311,14 +327,16 @@ void do_timer(long cpl)
 		if (!--beepcount)
 			sysbeepstop();
 
-	if (cpl)
-		current->utime++;
+	if (cpl) // 当前被中断进程是 0表示内核进程 1表示用户进程
+		// current 表示当前的进程
+		current->utime++; // 用户程序运行时间+1
 	else
-		current->stime++;
-
-	if (next_timer) {
+		current->stime++; // 内核程序运行时间+1
+    
+	if (next_timer) { // 嫁接于jiffies的变量的素有定时器的事件链表
 		next_timer->jiffies--;
 		while (next_timer && next_timer->jiffies <= 0) {
+			// 触发对应的事件
 			void (*fn)(void);
 			
 			fn = next_timer->fn;
@@ -329,6 +347,7 @@ void do_timer(long cpl)
 	}
 	if (current_DOR & 0xf0)
 		do_floppy_timer();
+	// 进程的时间片 进程的剩余运行时间
 	if ((--current->counter)>0) return;
 	current->counter=0;
 	if (!cpl) return;
@@ -389,9 +408,12 @@ void sched_init(void)
 
 	if (sizeof(struct sigaction) != 16)
 		panic("Struct sigaction MUST be 16 bytes");
+	// 进程的状态描述符
 	set_tss_desc(gdt+FIRST_TSS_ENTRY,&(init_task.task.tss));
+	// 局部描述符 数据段 代码段
 	set_ldt_desc(gdt+FIRST_LDT_ENTRY,&(init_task.task.ldt));
 	p = gdt+2+FIRST_TSS_ENTRY;
+	// 清空task
 	for(i=1;i<NR_TASKS;i++) {
 		task[i] = NULL;
 		p->a=p->b=0;
@@ -408,5 +430,6 @@ void sched_init(void)
 	outb(LATCH >> 8 , 0x40);	/* MSB */
 	set_intr_gate(0x20,&timer_interrupt);
 	outb(inb_p(0x21)&~0x01,0x21);
+	// 注册一个系统调用的中断 所有人可以调用
 	set_system_gate(0x80,&system_call);
 }

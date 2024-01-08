@@ -1,4 +1,9 @@
 	.code16
+# 磁盘引导块程序，在磁盘的第一个扇区的程序（0磁道 0 磁头 1扇区）
+# 作用：首先将后续的setup.s代码从磁盘中加载到0x90200(和bootsect相邻)
+# 在显示屏上显示 lod system,再把system加载到0x10000
+# 尝试运行setup.s  
+
 # rewrite with AT&T syntax by falcon <wuzhangjin@gmail.com> at 081012
 #
 # SYS_SIZE is the number of clicks (16 bytes) to be loaded.
