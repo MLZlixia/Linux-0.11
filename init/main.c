@@ -193,9 +193,11 @@ void init(void)
 	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
 		NR_BUFFERS*BLOCK_SIZE);
 	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
-	// 创建了1号进程 如果在0号父进程创建成功，返回9.如果在子进程创建成功返回父进程的pid
+	// 创建了1号进程 如果在0号父进程创建成功，返回0.
+	// 如果在子进程fork返回父进程的pid
 	if (!(pid=fork())) {
-		// 关闭父进程打开的标准输入输出
+		// 在1号进程中进行执行
+		// 关闭0号进程创建的标准输入输出
 		close(0);
 		// 打开了系统配置文件
 		if (open("/etc/rc",O_RDONLY,0))
@@ -205,7 +207,7 @@ void init(void)
 		_exit(2);
 	}
 	if (pid>0)
-	     // 在零号进程中等待子进程退出
+	     // 在零号进程中等待当前的子进程退出
 		while (pid != wait(&i))
 			/* nothing */;
 	while (1) {

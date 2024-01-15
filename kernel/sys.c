@@ -60,7 +60,7 @@ int sys_setregid(int rgid, int egid)
 	if (egid>0) {
 		if ((current->gid == egid) ||
 		    (current->egid == egid) ||
-		    (current->sgid == egid) ||
+		    (current->sgi   == egid) ||
 		    suser())
 			current->egid = egid;
 		else

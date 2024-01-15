@@ -129,12 +129,12 @@ void do_signal(long signr, long eax, long ebx, long ecx, long edx,
         else
             do_exit(1 << (signr - 1)); // 否则调用 do_exit 函数，终止进程
     }
-    if (sa->sa_flags & SA_ONESHOT)
+    if (sa->sa_flags & SA_ONESHOT) // 如果只是用一次
         sa->sa_handler = NULL; // 如果设置了 SA_ONESHOT 标志，则将信号处理函数指针置为空
 
     *(&eip) = sa_handler; // 将信号处理函数指针赋值给指令指针，实现跳转到信号处理函数
 
-    // 如果信号句柄只是用一次 则将信息置位空
+    // 如果信号句柄只是用一次 则将信息置位空 判断是否有阻塞码
 	longs = (sa->sa_flags & SA_NOMASK) ? 7 : 8; // 计算需要压入堆栈的参数个数，如果设置了 SA_NOMASK 标志，则参数个数为 7，否则为 8
 
     *(&esp) -= longs; // 调整堆栈指针，为参数预留空间
@@ -145,9 +145,10 @@ void do_signal(long signr, long eax, long ebx, long ecx, long edx,
     put_fs_long(signr, tmp_esp++); // 将信号编号压入堆栈
 
     if (!(sa->sa_flags & SA_NOMASK))
+	    // 如果是阻塞的 把阻塞码 压栈
         put_fs_long(current->blocked, tmp_esp++); // 如果未设置 SA_NOMASK 标志，则将当前进程的 blocked 字段压入堆栈
 
-    put_fs_long(eax, tmp_esp++); // 将寄存器的值压入堆栈
+    put_fs_long(eax, tmp_esp++);  // 将寄存器的值压入堆栈
     put_fs_long(ecx, tmp_esp++);
     put_fs_long(edx, tmp_esp++);
     put_fs_long(eflags, tmp_esp++);

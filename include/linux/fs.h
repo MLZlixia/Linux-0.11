@@ -65,17 +65,20 @@ __asm__("incl %0\n\tandl $4095,%0"::"m" (head))
 
 typedef char buffer_block[BLOCK_SIZE];
 
+// 高速缓冲区的头部结构体
 struct buffer_head {
-	char * b_data;			/* pointer to data block (1024 bytes) */
-	unsigned long b_blocknr;	/* block number */ // 块号
-	unsigned short b_dev;		/* device (0 = free) */
-	unsigned char b_uptodate;
-	unsigned char b_dirt;		/* 0-clean,1-dirty */
+	char * b_data;	 // 指向的数据的指针 1024个byte		/* pointer to data block (1024 bytes) */
+	unsigned long b_blocknr; // 数据逻辑块号 1K	/* block number */ // 块号
+	unsigned short b_dev; // 块设备号		/* device (0 = free) */
+	unsigned char b_uptodate; // 更新的标志位
+	unsigned char b_dirt; // 是否占用 0 没有 1 被使用 /* 0-clean,1-dirty */
 	unsigned char b_count;		/* users using this block */
-	unsigned char b_lock;		/* 0 - ok, 1 -locked */
-	struct task_struct * b_wait;
+	unsigned char b_lock; // 锁定是否		/* 0 - ok, 1 -locked */
+	struct task_struct * b_wait; // 等待该高速缓冲区释放的进程结构体指针 
+	// 散列数组
 	struct buffer_head * b_prev;
 	struct buffer_head * b_next;
+	// 构成了空闲缓冲区的循环链表（高速缓冲区中剩余的没有用到的缓冲区）
 	struct buffer_head * b_prev_free;
 	struct buffer_head * b_next_free;
 };
@@ -101,20 +104,21 @@ struct m_inode {
 	   // p pipe管代
 	   // c 字符设备
 	   // b 块设备
+	   // s 符号 链接
 	// 每个文件有三种属性 r（读） w （写） x（执行）
 	// 777----rwx（当前用户）rwx（用户组） rwx（他人权限）
-	unsigned short i_mode; 
-	unsigned short i_uid; // 宿主用户id
+	unsigned short i_mode; // 文件的类型和属性
+	unsigned short i_uid; // 属组的用户id
 	unsigned long i_size; // 该文件的大小
 	unsigned long i_mtime; // 文件修改时间
-	unsigned char i_gid; // 宿主的组id
+	unsigned char i_gid; // 属组的组id
 	unsigned char i_nlinks; // 链接数
 	// 该文件映射在逻辑块号的数组 
 	// 文件和磁盘的映射关系
 	// 前7位i_zone[7] 直接块号，如果你的文件只占用了七个逻辑块，那么这个数组的而每一个单元则存储了一个逻辑块号
 	// i_zone[8] 一次间接块号，一次占用的逻辑块较多 (> 7 && < 512+7) 占用一次间接逻辑块号
 	// i_zone[9] 二次间接块号，占用逻辑块太多（>512+7 && < 512*7) 启用二级逻辑块号
-	unsigned short i_zone[9]; 
+	unsigned short i_zone[9];  
 /* these are in memory also */
 	struct task_struct * i_wait;
 	unsigned long i_atime;
